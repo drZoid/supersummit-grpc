@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  envoy:
+    # image: envoyproxy/envoy-alpine:v1.14-latest
+    image: envoyproxy/envoy-alpine:v1.21-latest
+    # networks:
+    #   - moria
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - 8080:8080
+    volumes:
+      - ./docker/conf/envoy.yaml:/etc/envoy/envoy.yaml
+    
