@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package westernmovies;
+
+option java_package = "org.shwetank.grpc";
+
+// The western movie service definition.
+service WesternMovies {
+
+  rpc GetByName (NameRequest) returns (MovieResponse) {}
+
+}
+
+// The request message asking for details of a movie
+message NameRequest {
+  string name = 1;
+}
+
+// The response message containing the details of the requested Movie
+message MovieResponse {
+  string name = 1;
+  string year = 2;
+  string topCast = 3;
+  string overview = 4;
+}
