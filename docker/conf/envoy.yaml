@@ -21,15 +21,15 @@ static_resources:
             - name: local_service
               domains: ["*"]
               routes:
-              - match: { prefix: "/" }
+              - match: { prefix: "/grpc/" }
                 route:
-                  # prefix_rewrite: "/"
+                  prefix_rewrite: "/"
                   cluster: western_movie_server
                   timeout: 0s
-              # - match: { prefix: "/" }
-              #   route:
-              #     cluster: western_movie_ui
-              #     idle_timeout: 0s
+              - match: { prefix: "/" }
+                route:
+                  cluster: western_movie_ui
+                  idle_timeout: 0s
               cors:
                 allow_origin_string_match:
                 - prefix: "*"
@@ -63,17 +63,17 @@ static_resources:
                   socket_address:
                     address: host.docker.internal
                     port_value: 50051
-  # - name: western_movie_ui
-  #   connect_timeout: 1000s
-  #   type: logical_dns
-  #   lb_policy: round_robin
-  #   load_assignment:
-  #     cluster_name: cluster_0
-  #     endpoints:
-  #       - lb_endpoints:
-  #           - endpoint:
-  #               address:
-  #                 socket_address:
-  #                   address: host.docker.internal
-  #                   port_value: 3000
+  - name: western_movie_ui
+    connect_timeout: 1000s
+    type: logical_dns
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: cluster_0
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: host.docker.internal
+                    port_value: 3000
 
