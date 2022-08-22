@@ -1,8 +1,10 @@
+#+title: Using gRPC throughout a web application
+
 * Rough Steps
 * Create the protobuf 
- #+begin_quote
+ #+begin_src bash
  supersummit-grpc/protobuf/western_movies.proto
- #+end_quote
+ #+end_src
 * Generating the server stubs (we will use python)
 * Introduction: Namely
 * Use Namely to generate server stubs
@@ -237,6 +239,8 @@ npm pack
 ** Talk about Nuxt
 ** Mention the concept of plugins in nuxt which we will use to configure services that speak with our backend. The following steps will vary from Framework to Framework but concepts remain the same.
 *** Create a plugin that is executed before page is rendered
+Talk about how plugins are executed before a page is rendered.
+
 #+begin_src bash
 mkdir -p plugins
 touch plugins/grpcServices.ts
@@ -263,6 +267,8 @@ const grpcServicePlugin: Plugin = (context, inject) => {
 
 export default grpcServicePlugin
 #+end_src
+*** Talk about the concept of baseUrl in context of Nuxt
+Show the baseUrl value /grpc in nuxt.config.js. Explain that in this scenario accessing ui server from localhost:3000 will result in our WesternMoviesClient trying to make grpc calls to localhost:3000/grpc
 *** Use the service we just injected in a page
 Our index.vue now looks like
 #+begin_src web
@@ -309,8 +315,9 @@ export default class Index extends Vue {
 </style>
 #+end_src
 *** Profit!
+* Improvements to this setup
 
 * Presenting improvements
-- [ ] get org-babel to show properly highlighted code snippets
+- [ ] get org-babel to show properly highlighted code snippets - bash, python etc are looking off
 - [ ] Get python code to render right in emacs
 - [ ] Optional - Get vetur (vls) to work right with eglot
