@@ -1,2 +1,5 @@
 # exclude generated grpc code
 */gen/**
+bin/grpc-web-artifacts
+*/node_modules/**
+__pycache__

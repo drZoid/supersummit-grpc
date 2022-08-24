@@ -1,0 +1,364 @@
+#+title: Using gRPC end to end in a web application
+
+* Why?
+- Rest works just fine.
+- Requires no setup and is easy to use 
+- Why gRPC?
+
+* 
+#+ATTR_HTML: :width 800
+[[file:~/Downloads/memes/changed-a-json.jpg]]
+
+* Need more reasons?
+- Better streaming support
+- Better error handling capabilities
+- API discovery is easier
+- Performance
+
+* Let's see it in action
+
+
+Clone the following repository and follow along
+
+#+begin_src bash
+git clone git@github.com:drZoid/supersummit-grpc.git
+#+end_src
+
+* Overview
+TODO: make the content under this slide individually bigger
+
+1. Define the protobuf
+2. Compile the protobuf
+3. Implement the server and client
+4. Profit!
+   
+* 1. Define the protobuf
+
+ Take a look at
+ 
+ #+begin_src bash
+supersummit-grpc/protobuf/western_movies.proto
+ #+end_src
+
+ #+begin_src protobuf
+syntax = "proto3";
+
+package westernmovies;
+
+// The western movie service definition.
+service WesternMovies {
+
+  rpc GetByName (NameRequest) returns (MovieResponse) {}
+
+}
+
+// The request message asking for details of a movie
+message NameRequest {
+  string name = 1;
+}
+
+// The response message containing the details of the requested Movie
+message MovieResponse {
+  string name = 1;
+  string year = 2;
+  string topCast = 3;
+  string overview = 4;
+}
+ #+end_src
+* 2. Compile the protobuf
+* 2. Compile the protobuf: Issues
+
+- There are different gRPC tools for different languages and frameworks
+- Different ways of generating gRPC server client stubs for them
+- Managing these on our CI and our machines is a chore
+
+  TODO: Insert python and node and typescript examples
+* 2. Compile the protobuf (contd.)
+
+We need a standard way to generate code for the languages we use.
+* 2. Compile the protobuf (contd.)
+
+Introducing: docker-protoc by namely
+
+https://github.com/namely/docker-protoc
+
+From the ReadMe -
+
+=This repository contains support for various Docker images that wrap protoc, prototool, grpc_cli commands with gRPC support in a variety of languages removing the need to install and manage these commands locally.=
+
+* 2. Compile the protobuf: Use namely 
+
+#+begin_src bash
+$ docker pull namely/protoc-all
+#+end_src
+
+#+begin_src bash
+$ cd protobuf
+$ docker run -v `pwd`:/defs namely/protoc-all -f western_movies.proto -l python
+#+end_src
+
+* 2. Compile the protobuf: Use namely
+
+We will see two files generated in the following directory
+
+~/protobuf/gen/pb_python~ 
+
+- western_movies_pb2.py
+- western_movies_pb2_grpc.py
+
+ For production usage, we would package these and publish to our pip repository.
+ For now we will just copy these to the ~python-server~ directory
+
+* Implement the Server
+
+Take a look at ~/python-server/western_movies_server.py~ 
+
+ #+begin_src python
+class WesternMovies(western_movies_pb2_grpc.WesternMoviesServicer):
+
+    def GetByName(self, request, context):
+        return western_movies_pb2.MovieResponse(
+            name="The Good, The Bad and The Ugly",
+            year='1966',
+            topCast='Clint Eastwood',
+            overview='Best Western Ever!'
+        )
+ #+end_src
+
+
+* Run the server
+ If you are following along then these are the commands you need to run.
+
+ - Copy the files
+#+begin_src bash
+ $ cp protobuf/gen/western_movies_pb2.py python-server/
+ $ cp protobuf/gen/western_movies_pb2_grpc.py python-server/
+ #+end_src
+
+ - Setup VirtualEnv and install dependencies
+#+begin_src bash
+$ cd python-server
+$ python3 -m pip install virtualenv
+$ mkdir -p ~/.pythonvirtualenvs
+$ virtualenv ~/.pythonvirtualenvs/western-movies
+$ source ~/.pythonvirtualenvs/western-movies/activate
+$ pip install -r requirements.txt
+ #+end_src
+
+* Test if our server is working fine
+
+Take a look at =supersummit-grpc/python-server/western_movies_client.py= 
+
+#+begin_src python
+def run():
+  with grpc.insecure_channel('localhost:50051') as channel:
+    stub = pb2_grpc.WesternMoviesStub(channel)
+    request = pb2.NameRequest(name='The Good, The Bad And The Ugly')
+    response = stub.GetByName(request)
+  print("Western client received: \n\n" + str(response))
+#+end_src
+
+- Let's run it
+
+* Review
+
+- We have established that we are serving gRPC and are able to access the service.
+
+- But this isn't enough to get the javascript running in your browser to be able to communicate with the service.
+
+* Introducing: Envoy and grpc-web
+
+#+ATTR_HTML: :width 800
+[[file:~/Downloads/memes/envoy-grpc.png]]
+
+* Setup Envoy
+
+- We will use docker-compose to run Envoy
+
+  Take a look at ~docker-compose.yml~
+
+  #+begin_src yaml
+version: "3.9"
+services:
+  envoy:
+    image: envoyproxy/envoy-alpine:v1.21-latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - 8080:8080
+    volumes:
+      - ./docker/conf/envoy.yaml:/etc/envoy/envoy.yaml
+  #+end_src
+
+  - Our Envoy configuration is mounted into the docker image
+
+* Setup Envoy
+
+- Routes
+#+begin_src yaml
+  virtual_hosts:
+  - name: local_service
+    domains: ["*"]
+    routes:
+    # - match: { prefix: "/grpc/" }  
+    - match: { prefix: "/" }  
+      route:
+        # prefix_rewrite: "/"
+        cluster: western_movie_server
+        timeout: 0s
+    # - match: { prefix: "/" }
+    #   route:
+    #     cluster: western_movie_ui
+    #     idle_timeout: 0s
+
+#+end_src
+- Clusters
+#+begin_src yaml
+  clusters:
+  - name: western_movie_server
+    connect_timeout: 0.25s
+    type: logical_dns
+    http2_protocol_options: {}
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: cluster_0
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: host.docker.internal
+                    port_value: 50051
+#+end_src
+* Run envoy 
+
+~$ docker-compose up~
+* Review
+
+- At this point we have envoy translating between grpc-web <> grpc
+#+ATTR_HTML: :width 800
+[[file:~/Downloads/memes/envoy-grpc.png]]
+* Review (before more Envoy configuration) -
+
+- Our western_movies_service is serving grpc on ~localhost:50051~
+- Envoy is running on ~localhost:8080~
+- UI WILL run on ~localhost:3000~
+
+  =We want to serve our UI and grpc-web from the same host and port.=
+* Review
+
+  =We want to serve our UI and grpc-web from the same host and port.=
+
+  Why?
+  Ask me later :) But the short answer is easier (and more flexible) authentication
+  
+* Review
+
+=We want to serve our UI and grpc-web from the same host and port.=
+
+=Envoy will help us do that!=
+
+- We made some changes to our envoy config.
+- Take a look at ~docker/conf/envoy-final.yaml~
+
+- Here are the changes
+#+begin_src yaml
+  virtual_hosts:
+  - name: local_service
+    domains: ["*"]
+    routes:
+    # - match: { prefix: "/grpc/" }  
+    - match: { prefix: "/" }  
+      route:
+        # prefix_rewrite: "/"
+        cluster: western_movie_server
+        timeout: 0s
+    # - match: { prefix: "/" }
+    #   route:
+    #     cluster: western_movie_ui
+    #     idle_timeout: 0s
+
+#+end_src
+* Review
+
+- Now every request to ~localhost:8080/grpc~ goes to ~localhost:50051~
+- Now every request to ~localhost:8080/~ goes to ~localhost:3000~
+* We will use typescript!
+
+But Why?
+* 
+#+ATTR_HTML: :width 800
+[[file:~/Downloads/memes/yoda-use-the-power.jpg]]
+
+* Wiring our UI to speak grpc-web
+
+- Generate typescript stubs using our protobuf file
+
+  #+begin_src bash
+$ docker run -v `pwd`:/defs namely/protoc-all -f western_movies.proto -l web
+  #+end_src
+
+- With python we got away with simply copying the generated stuff but here we got to package it
+  #+begin_src bash
+$ cd bin
+$ chmod +x ./package-grpc-web.sh
+$ ./package-grpc-web.sh
+#+end_src
+
+* Wiring our UI to speak grpc-web
+
+Run the following commands to install the UI dependencies and run it.
+#+begin_src bash
+cd ui
+npm install
+npm run dev
+#+end_src
+* Wiring our UI to speak grpc-web: Review
+
+- Our western_movies_service is serving grpc on ~localhost:50051~
+- Envoy is running on ~localhost:8080~
+- UI +WILL run+ is now running on ~localhost:3000~
+
+  We made it!
+
+* Wiring our UI to speak grpc-web: Review
+
+- We want to execute some code that tells where the grpc requests will go before the page renders
+- Nuxt has something called a ~plugin~ that does that. It executes a piece of js before anything else happens
+- We have a plugin in ~ui/plugins/grpcServices.ts~
+
+* Wiring our UI to speak grpc-web: Review
+
+Things to note in the code below
+
+- We import the WesternMoviesClient from the generated stub.
+- We need to tell it where can it query the WesternMoviesService i.e. the url (http://localhost:8080/grpc)
+- ~context.env.baseUrl~ resolves to ~/grpc~
+
+#+begin_src typescript
+import { WesternMoviesClient } from "@superset/grpc-protobuf-client-js/Western_moviesServiceClientPb";
+
+const $movieClient = new WesternMoviesClient(
+  context.env.baseUrl,
+  null,
+  {withCredentials: true}
+)
+
+inject("movieClient", $movieClient)
+#+end_src
+
+* How does this feel to use? 
+
+demo
+
+* Improvements
+
+- ts-proto - https://github.com/stephenh/ts-proto
+#+begin_src typescript
+const request = new MoviesPb.NameRequest()
+  .setName("foobarbazqux");
+#+end_src
+
+#+begin_src typescript
+const request: MoviesPb.NameRequest = {name: "foobarbaz"}
+#+end_src

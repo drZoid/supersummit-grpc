@@ -11,7 +11,12 @@ import western_movies_pb2_grpc
 class WesternMovies(western_movies_pb2_grpc.WesternMoviesServicer):
 
     def GetByName(self, request, context):
-        return western_movies_pb2.MovieResponse(year='1966', topCast='Clint Eastwood', overview='Best Western Ever!')
+        return western_movies_pb2.MovieResponse(
+            name="The Good, The Bad and The Ugly",
+            year='1966',
+            topCast='Clint Eastwood',
+            overview='Best Western Ever!'
+        )
 
 
 def serve():
@@ -19,6 +24,7 @@ def serve():
     western_movies_pb2_grpc.add_WesternMoviesServicer_to_server(WesternMovies(), server)
     server.add_insecure_port('[::]:50051')
     server.start()
+    print("Server started! Waiting for termination")
     server.wait_for_termination()
 
 

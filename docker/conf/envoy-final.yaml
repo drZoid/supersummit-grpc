@@ -12,7 +12,7 @@ static_resources:
     - filters:
       - name: envoy.filters.network.http_connection_manager
         typed_config:
-          "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           codec_type: auto
           stat_prefix: ingress_http
           route_config:
@@ -21,15 +21,15 @@ static_resources:
             - name: local_service
               domains: ["*"]
               routes:
+              - match: { prefix: "/grpc/" }  
+                route:
+                  prefix_rewrite: "/"
+                  cluster: western_movie_server
+                  timeout: 0s
               - match: { prefix: "/" }
                 route:
-                  # prefix_rewrite: "/"
-                  cluster: moria
-                  max_grpc_timeout: 0s
-              # - match: { prefix: "/" }
-              #   route:
-              #     cluster: durin
-              #     idle_timeout: 0s
+                  cluster: western_movie_ui
+                  idle_timeout: 0s
               cors:
                 allow_origin_string_match:
                 - prefix: "*"
@@ -40,16 +40,22 @@ static_resources:
                 expose_headers: custom-header-1,grpc-status,grpc-message
           http_filters:
           - name: envoy.filters.http.grpc_web
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
           - name: envoy.filters.http.cors
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
           - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
   clusters:
-  - name: moria
+  - name: western_movie_server
     connect_timeout: 0.25s
     type: logical_dns
     http2_protocol_options: {}
     lb_policy: round_robin
     load_assignment:
-      cluster_name: moria_cluster
+      cluster_name: cluster_0
       endpoints:
         - lb_endpoints:
             - endpoint:
@@ -57,17 +63,17 @@ static_resources:
                   socket_address:
                     address: host.docker.internal
                     port_value: 50051
-  # - name: durin
-  #   connect_timeout: 1000s
-  #   type: logical_dns
-  #   lb_policy: round_robin
-  #   load_assignment:
-  #     cluster_name: durin_cluster
-  #     endpoints:
-  #       - lb_endpoints:
-  #           - endpoint:
-  #               address:
-  #                 socket_address:
-  #                   address: host.docker.internal
-  #                   port_value: 3000
+  - name: western_movie_ui
+    connect_timeout: 1000s
+    type: logical_dns
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: cluster_0
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: host.docker.internal
+                    port_value: 3000
 
