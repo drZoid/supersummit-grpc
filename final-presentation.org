@@ -125,7 +125,6 @@ class WesternMovies(western_movies_pb2_grpc.WesternMoviesServicer):
         )
  #+end_src
 
-
 * Run the server
  If you are following along then these are the commands you need to run.
 
@@ -354,6 +353,26 @@ demo
 * Improvements
 
 - ts-proto - https://github.com/stephenh/ts-proto
+    - It is typescript first. Everything is an interface as much as possible.
+    - Much nicer api
+
+      The following code 
+      #+begin_src typescript
+const request = new MoviesPb
+  .NameRequest()
+  .setName("foobarbazqux");
+      #+end_src
+
+      becomes
+      
+      #+begin_src typescript
+const request: MoviesPb: NameRequest = { name: "foobarbazqux"}
+      #+end_src
+
+- fp-ts - https://github.com/gcanti/fp-ts
+
+    - If you know and love functional programming, this library will improve your typescript experience
+  
 #+begin_src typescript
 const request = new MoviesPb.NameRequest()
   .setName("foobarbazqux");

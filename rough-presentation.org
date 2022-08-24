@@ -327,3 +327,10 @@ export default class Index extends Vue {
 - [ ] get org-babel to show properly highlighted code snippets - bash, python etc are looking off
 - [ ] Get python code to render right in emacs
 - [ ] Optional - Get vetur (vls) to work right with eglot
+
+*
+- clientTerm
+- dockerTerm
+- serverTerm
+
+* 
