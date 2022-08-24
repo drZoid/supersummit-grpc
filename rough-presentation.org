@@ -1,5 +1,10 @@
 #+title: Using gRPC throughout a web application
-
+* Requirements
+- Python 3 (version 3.8.10)
+- docker cli (version 20.10.17)
+- docker-compose (version 1.29.2)
+- bloom-rpc
+- npm (version 8.1.2)
 * Rough Steps
 * Create the protobuf 
  #+begin_src bash
@@ -316,6 +321,7 @@ export default class Index extends Vue {
 #+end_src
 *** Profit!
 * Improvements to this setup
+
 
 * Presenting improvements
 - [ ] get org-babel to show properly highlighted code snippets - bash, python etc are looking off

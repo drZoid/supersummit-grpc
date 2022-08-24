@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <button type="button" @click="fetchMovie()" title="Click here for best western movie ever!">GetMovie</button>
     <div class="detail"> Movie Name: {{movieName}} </div>
     <div class="detail"> Movie Overview: {{movieOverview}} </div>
     <div class="detail"> Top Cast: {{topCast}} </div>
@@ -19,10 +20,11 @@ export default class Index extends Vue {
   protected topCast = ""
   protected year = ""
 
-  fetch() {
-    const request = new MoviesPb.NameRequest().setName("foobar");
+  fetchMovie() {
+    const request = new MoviesPb.NameRequest().setName("foobarbazqux");
     const response = this.$movieClient.getByName(request, null)
     response.then((value) => {
+      this.movieName = value.getName()
       this.movieOverview = value.getOverview();
       this.topCast = value.getTopcast();
       this.year = value.getYear();

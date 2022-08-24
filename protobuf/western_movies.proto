@@ -1,15 +1,12 @@
 syntax = "proto3";
 
-// option java_multiple_files = true;
-// option java_package = "com.superset.grpc";
-// option java_outer_classname = "WesternMovies";
-
 package westernmovies;
 
 // The western movie service definition.
 service WesternMovies {
-  // Sends a greeting
+
   rpc GetByName (NameRequest) returns (MovieResponse) {}
+
 }
 
 // The request message asking for details of a movie
@@ -19,7 +16,8 @@ message NameRequest {
 
 // The response message containing the details of the requested Movie
 message MovieResponse {
-  string year = 1;
-  string topCast = 2;
-  string overview = 3;
+  string name = 1;
+  string year = 2;
+  string topCast = 3;
+  string overview = 4;
 }
