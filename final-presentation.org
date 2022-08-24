@@ -1,8 +1,11 @@
 #+title: Using gRPC end to end in a web application
 
 * Why?
-- Rest works just fine.
-- Requires no setup and is easy to use 
+
+- REST works just fine.
+
+- Requires almost no setup and is easy to use 
+
 - Why gRPC?
 
 * 
@@ -10,9 +13,14 @@
 [[file:~/Downloads/memes/changed-a-json.jpg]]
 
 * Need more reasons?
+
+
 - Better streaming support
+
 - Better error handling capabilities
+
 - API discovery is easier
+
 - Performance
 
 * Let's see it in action
@@ -25,11 +33,13 @@ git clone git@github.com:drZoid/supersummit-grpc.git
 #+end_src
 
 * Overview
-TODO: make the content under this slide individually bigger
 
 1. Define the protobuf
+
 2. Compile the protobuf
+
 3. Implement the server and client
+
 4. Profit!
    
 * 1. Define the protobuf
@@ -41,23 +51,19 @@ supersummit-grpc/protobuf/western_movies.proto
  #+end_src
 
  #+begin_src protobuf
-syntax = "proto3";
-
-package westernmovies;
-
-// The western movie service definition.
+// The service definition.
 service WesternMovies {
 
   rpc GetByName (NameRequest) returns (MovieResponse) {}
 
 }
 
-// The request message asking for details of a movie
+// The request message 
 message NameRequest {
   string name = 1;
 }
 
-// The response message containing the details of the requested Movie
+// The response containing the details of the requested Movie
 message MovieResponse {
   string name = 1;
   string year = 2;
@@ -65,17 +71,38 @@ message MovieResponse {
   string overview = 4;
 }
  #+end_src
+
 * 2. Compile the protobuf
+
+
+
+There are different tools to do the compiling depending on our language and framework of choice.
 * 2. Compile the protobuf: Issues
 
 - There are different gRPC tools for different languages and frameworks
+
 - Different ways of generating gRPC server client stubs for them
+
 - Managing these on our CI and our machines is a chore
 
-  TODO: Insert python and node and typescript examples
+  For python
+  #+begin_src bash
+python -m pip install grpcio grpcio-tools
+
+python -m grpc_tools.protoc -I ./protobuf --python_out=./protobuf/gen --grpc_python_out=./protobuf/western_movies.proto
+  #+end_src
+
+  For typescript
+  #+begin_src bash
+npm install -g grpc-tools
+
+grpc_tools_node_protoc --js_out=import_style=commonjs,binary:../node/static_codegen/ --grpc_out=../node/static_codegen --plugin=protoc-gen-grpc=`which grpc_tools_node_protoc_plugin` western_movies.proto
+  #+end_src
+
 * 2. Compile the protobuf (contd.)
 
-We need a standard way to generate code for the languages we use.
+
+We need a standard way to generate code for the technologies we use.
 * 2. Compile the protobuf (contd.)
 
 Introducing: docker-protoc by namely
@@ -94,7 +121,7 @@ $ docker pull namely/protoc-all
 
 #+begin_src bash
 $ cd protobuf
-$ docker run -v `pwd`:/defs namely/protoc-all -f western_movies.proto -l python
+$ docker run -v <pathToProto>:/defs namely/protoc-all -f western_movies.proto -l python
 #+end_src
 
 * 2. Compile the protobuf: Use namely
@@ -114,7 +141,7 @@ We will see two files generated in the following directory
 Take a look at ~/python-server/western_movies_server.py~ 
 
  #+begin_src python
-class WesternMovies(western_movies_pb2_grpc.WesternMoviesServicer):
+class WesternMovies(...pb2_grpc.WesternMoviesServicer):
 
     def GetByName(self, request, context):
         return western_movies_pb2.MovieResponse(
@@ -140,8 +167,9 @@ $ cd python-server
 $ python3 -m pip install virtualenv
 $ mkdir -p ~/.pythonvirtualenvs
 $ virtualenv ~/.pythonvirtualenvs/western-movies
-$ source ~/.pythonvirtualenvs/western-movies/activate
+$ source ~/.pythonvirtualenvs/western-movies/bin/activate
 $ pip install -r requirements.txt
+$ python western_movies_server.py
  #+end_src
 
 * Test if our server is working fine
@@ -152,7 +180,9 @@ Take a look at =supersummit-grpc/python-server/western_movies_client.py=
 def run():
   with grpc.insecure_channel('localhost:50051') as channel:
     stub = pb2_grpc.WesternMoviesStub(channel)
-    request = pb2.NameRequest(name='The Good, The Bad And The Ugly')
+    request = pb2.NameRequest(
+      name='The Good, The Bad And The Ugly'
+    )
     response = stub.GetByName(request)
   print("Western client received: \n\n" + str(response))
 #+end_src
@@ -163,7 +193,7 @@ def run():
 
 - We have established that we are serving gRPC and are able to access the service.
 
-- But this isn't enough to get the javascript running in your browser to be able to communicate with the service.
+- But this isn't enough to get the javascript running in a browser to be able to communicate with the service.
 
 * Introducing: Envoy and grpc-web
 
@@ -240,7 +270,9 @@ services:
 * Review (before more Envoy configuration) -
 
 - Our western_movies_service is serving grpc on ~localhost:50051~
+
 - Envoy is running on ~localhost:8080~
+
 - UI WILL run on ~localhost:3000~
 
   =We want to serve our UI and grpc-web from the same host and port.=
@@ -278,13 +310,23 @@ services:
     #     idle_timeout: 0s
 
 #+end_src
-* Review
 
-- Now every request to ~localhost:8080/grpc~ goes to ~localhost:50051~
-- Now every request to ~localhost:8080/~ goes to ~localhost:3000~
+
+* Review
+- Rerun Envoy with new configuration
+  #+begin_src bash
+docker-compose -f docker-compose-final.yml up
+  #+end_src
+
+- Every request to ~localhost:8080/grpc~ goes to ~localhost:50051~
+
+- Every request to ~localhost:8080/~ goes to ~localhost:3000~
+
+* Time to setup a UI that speaks grpc-web to our service
+
 * We will use typescript!
 
-But Why?
+Why?
 * 
 #+ATTR_HTML: :width 800
 [[file:~/Downloads/memes/yoda-use-the-power.jpg]]
@@ -294,7 +336,7 @@ But Why?
 - Generate typescript stubs using our protobuf file
 
   #+begin_src bash
-$ docker run -v `pwd`:/defs namely/protoc-all -f western_movies.proto -l web
+$ docker run -v <pathToProto>:/defs namely/protoc-all -f western_movies.proto -l web
   #+end_src
 
 - With python we got away with simply copying the generated stuff but here we got to package it
@@ -312,6 +354,7 @@ cd ui
 npm install
 npm run dev
 #+end_src
+
 * Wiring our UI to speak grpc-web: Review
 
 - Our western_movies_service is serving grpc on ~localhost:50051~
@@ -323,7 +366,9 @@ npm run dev
 * Wiring our UI to speak grpc-web: Review
 
 - We want to execute some code that tells where the grpc requests will go before the page renders
+  
 - Nuxt has something called a ~plugin~ that does that. It executes a piece of js before anything else happens
+  
 - We have a plugin in ~ui/plugins/grpcServices.ts~
 
 * Wiring our UI to speak grpc-web: Review
@@ -372,12 +417,7 @@ const request: MoviesPb: NameRequest = { name: "foobarbazqux"}
 - fp-ts - https://github.com/gcanti/fp-ts
 
     - If you know and love functional programming, this library will improve your typescript experience
-  
-#+begin_src typescript
-const request = new MoviesPb.NameRequest()
-  .setName("foobarbazqux");
-#+end_src
 
-#+begin_src typescript
-const request: MoviesPb.NameRequest = {name: "foobarbaz"}
-#+end_src
+* Thank You!
+
+Questions?
